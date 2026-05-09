@@ -1,3 +1,4 @@
+pub mod changeset;
 pub mod error;
 
 pub use error::Error;
