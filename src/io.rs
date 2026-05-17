@@ -1,4 +1,4 @@
-use crate::Changeset::LabelChangeset;
+use crate::changeset::LabelChangeset;
 use crate::error::Error;
 use std::io::{BufRead, Write};
 
