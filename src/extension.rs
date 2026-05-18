@@ -3,6 +3,7 @@ use bdk_wallet::Wallet;
 
 use crate::Error;
 use crate::changeset::{LabelChangeset, MergeStrategy};
+use crate::persist::LabelPersister;
 use crate::{export, import};
 use bip329::{Label, LabelRef};
 use std::io::{BufRead, Write};
@@ -21,16 +22,6 @@ impl<'a> Bip329 for LabelledWallet<'a> {
 
         label_text: impl Into<String>,
     ) -> Result<Label, Error> {
-        // ...
-
-        // pub enum LabelRef {
-        //     Txid(Txid),
-        //     Address(Address<NetworkUnchecked>),
-        //     PublicKey(String),
-        //     Input(OutPoint),
-        //     Output(OutPoint),
-        //     Xpub(String),
-        // }
         let new_label = match target.into() {
             LabelRef::Txid(txid) => Label::Transaction(bip329::TransactionRecord {
                 ref_: txid,
@@ -70,7 +61,6 @@ impl<'a> Bip329 for LabelledWallet<'a> {
         reader: R,
         strategy: MergeStrategy,
     ) -> Result<(), Error> {
-        // ...
         let imported_labels = import(reader)?;
         self.labels.merge(imported_labels, strategy);
         Ok(())
@@ -80,5 +70,11 @@ impl<'a> Bip329 for LabelledWallet<'a> {
         let _ = export(self.labels, writer);
         Ok(())
     }
-    // import_labels and export_labels will go here next
+}
+
+impl<'a> LabelledWallet<'a> {
+    pub fn persist<P: LabelPersister>(&mut self, persister: &mut P) -> Result<(), Error> {
+        persister.append_changeset(self.labels)?;
+        Ok(())
+    }
 }

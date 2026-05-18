@@ -8,4 +8,6 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error("Invalid BIP329 structure: {0}")]
     Validation(String),
+    #[error("Custom Database error: {0}")]
+    Custom(#[from] Box<dyn std::error::Error + Send + Sync>),
 }

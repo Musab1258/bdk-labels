@@ -2,9 +2,11 @@ pub mod changeset;
 pub mod error;
 pub mod extension;
 pub mod io;
+pub mod persist;
 
 pub use error::Error;
 pub use io::{export, import};
+pub use persist::LabelPersister;
 
 use crate::changeset::MergeStrategy;
 use bip329::{Label, LabelRef};
