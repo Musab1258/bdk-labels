@@ -14,7 +14,7 @@ pub struct LabelledWallet<'a> {
     pub labels: &'a mut LabelChangeset,
 }
 
-impl<'a> Bip329 for LabelledWallet<'a> {
+impl Bip329 for LabelledWallet<'_> {
     fn add_label(
         &mut self,
 
@@ -72,7 +72,7 @@ impl<'a> Bip329 for LabelledWallet<'a> {
     }
 }
 
-impl<'a> LabelledWallet<'a> {
+impl LabelledWallet<'_> {
     pub fn persist<P: LabelPersister>(&mut self, persister: &mut P) -> Result<(), Error> {
         persister.append_changeset(self.labels)?;
         Ok(())
