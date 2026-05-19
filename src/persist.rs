@@ -1,8 +1,9 @@
 use crate::changeset::LabelChangeset;
-use crate::error::Error;
 
 pub trait LabelPersister {
-    fn read_labels(&self) -> Result<LabelChangeset, Error>;
+    type Error: std::error::Error + Send + Sync + 'static;
 
-    fn append_changeset(&mut self, changeset: &LabelChangeset) -> Result<(), Error>;
+    fn read_labels(&self) -> Result<LabelChangeset, Self::Error>;
+
+    fn append_changeset(&mut self, changeset: &LabelChangeset) -> Result<(), Self::Error>;
 }

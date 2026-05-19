@@ -74,7 +74,9 @@ impl Bip329 for LabelledWallet<'_> {
 
 impl LabelledWallet<'_> {
     pub fn persist<P: LabelPersister>(&mut self, persister: &mut P) -> Result<(), Error> {
-        persister.append_changeset(self.labels)?;
+        persister
+            .append_changeset(self.labels)
+            .map_err(|e| Error::Custom(Box::new(e)))?;
         Ok(())
     }
 }
