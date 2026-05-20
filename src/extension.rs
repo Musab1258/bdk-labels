@@ -67,8 +67,7 @@ impl Bip329 for LabelledWallet<'_> {
     }
 
     fn export_labels<W: Write>(&self, writer: W) -> Result<(), Error> {
-        let _ = export(self.labels, writer);
-        Ok(())
+        export(self.labels, writer)
     }
 }
 

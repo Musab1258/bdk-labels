@@ -1,5 +1,6 @@
 use crate::changeset::LabelChangeset;
 use crate::error::Error;
+use bip329::Label;
 use std::io::{BufRead, Write};
 
 pub fn export<W: Write>(labels: &LabelChangeset, mut writer: W) -> Result<(), Error> {
@@ -13,7 +14,7 @@ pub fn export<W: Write>(labels: &LabelChangeset, mut writer: W) -> Result<(), Er
 pub fn import<R: BufRead>(reader: R) -> Result<LabelChangeset, Error> {
     let mut imported_labels = LabelChangeset::new();
     for line_result in reader.lines() {
-        let line = serde_json::from_str(&line_result?)?;
+        let line: Label = serde_json::from_str(&line_result?)?;
         imported_labels.insert(line);
     }
     Ok(imported_labels)
