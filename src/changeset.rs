@@ -103,4 +103,25 @@ mod tests {
         assert!(changeset.is_empty());
         assert_eq!(changeset.get(&dummy_label.ref_()), None);
     }
+
+    #[test]
+    fn test_implicit_deduplication() {
+        let mut changeset = LabelChangeset::new();
+
+        let dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let dummy_label = Label::Transaction(TransactionRecord {
+            ref_: dummy_txid,
+            label: Some("Machinery".to_string()),
+            origin: None,
+        });
+
+        changeset.insert(dummy_label.clone());
+        changeset.insert(dummy_label.clone());
+        changeset.insert(dummy_label.clone());
+
+        assert_eq!(changeset.len(), 1);
+    }
 }
