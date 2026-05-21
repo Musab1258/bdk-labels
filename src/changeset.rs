@@ -187,4 +187,43 @@ mod tests {
 
         assert_eq!(base_changeset.get(&dummy_label.ref_()), Some(&dummy_label));
     }
+
+    #[test]
+    fn test_non_overlapping_merges() {
+        let mut base_changeset = LabelChangeset::new();
+        let mut incoming_changeset = LabelChangeset::new();
+
+        let dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let another_dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000110")
+                .unwrap();
+
+        let dummy_label = Label::Transaction(TransactionRecord {
+            ref_: dummy_txid,
+            label: Some("Machinery".to_string()),
+            origin: None,
+        });
+
+        let another_dummy_label = Label::Transaction(TransactionRecord {
+            ref_: another_dummy_txid,
+            label: Some("Heavy Machinery".to_string()),
+            origin: None,
+        });
+
+        base_changeset.insert(dummy_label.clone());
+
+        incoming_changeset.insert(another_dummy_label.clone());
+
+        base_changeset.merge(incoming_changeset, MergeStrategy::Overwrite);
+
+        assert_eq!(base_changeset.len(), 2);
+        assert_eq!(base_changeset.get(&dummy_label.ref_()), Some(&dummy_label));
+        assert_eq!(
+            base_changeset.get(&another_dummy_label.ref_()),
+            Some(&another_dummy_label)
+        );
+    }
 }
