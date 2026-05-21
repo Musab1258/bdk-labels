@@ -19,3 +19,37 @@ pub fn import<R: BufRead>(reader: R) -> Result<LabelChangeset, Error> {
     }
     Ok(imported_labels)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bip329::{AddressRecord, Label};
+    use bitcoin::Address;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_round_trip_export_import() {
+        let mut changeset = LabelChangeset::new();
+
+        let dummy_address =
+            Address::from_str("bc1p0dq0tzg2r780hldthn5mrznmpxsxc0jux5f20fwj0z3wqxxk6fpqm7q0va")
+                .expect("Failed to parse address");
+
+        let dummy_label = Label::Address(AddressRecord {
+            ref_: dummy_address,
+            label: Some("Heavy Machinery".to_string()),
+        });
+
+        changeset.insert(dummy_label.clone());
+
+        let mut buffer = Vec::new();
+
+        export(&changeset, &mut buffer).expect("Failed to export changeset");
+
+        let reader = std::io::Cursor::new(buffer);
+
+        let imported_file = import(reader).expect("Failed to import changeset");
+
+        assert_eq!(imported_file.get(&dummy_label.ref_()), Some(&dummy_label));
+    }
+}
