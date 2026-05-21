@@ -52,4 +52,21 @@ mod tests {
 
         assert_eq!(imported_file.get(&dummy_label.ref_()), Some(&dummy_label));
     }
+
+    #[test]
+    fn test_empty_export_import_states() {
+        let changeset = LabelChangeset::new();
+
+        let mut buffer = Vec::new();
+
+        export(&changeset, &mut buffer).expect("Failed to export changeset");
+
+        assert_eq!(buffer.len(), 0);
+
+        let reader = std::io::Cursor::new(buffer);
+
+        let imported_file = import(reader).expect("Failed to import changeset");
+
+        assert_eq!(imported_file.len(), 0);
+    }
 }
