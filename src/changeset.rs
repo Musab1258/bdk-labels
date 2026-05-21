@@ -124,4 +124,37 @@ mod tests {
 
         assert_eq!(changeset.len(), 1);
     }
+
+    #[test]
+    fn test_merge_strategy_overwrite() {
+        let mut base_changeset = LabelChangeset::new();
+        let mut incoming_changeset = LabelChangeset::new();
+
+        let dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let dummy_label = Label::Transaction(TransactionRecord {
+            ref_: dummy_txid,
+            label: Some("Machinery".to_string()),
+            origin: None,
+        });
+
+        let another_dummy_label = Label::Transaction(TransactionRecord {
+            ref_: dummy_txid,
+            label: Some("Heavy Machinery".to_string()),
+            origin: None,
+        });
+
+        base_changeset.insert(dummy_label.clone());
+
+        incoming_changeset.insert(another_dummy_label.clone());
+
+        base_changeset.merge(incoming_changeset, MergeStrategy::Overwrite);
+
+        assert_eq!(
+            base_changeset.get(&dummy_label.ref_()),
+            Some(&another_dummy_label)
+        );
+    }
 }
