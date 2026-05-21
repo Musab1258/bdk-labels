@@ -62,8 +62,8 @@ impl LabelChangeset {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bip329::{Label, TransactionRecord};
-    use bitcoin::Txid;
+    use bip329::{AddressRecord, Label, TransactionRecord};
+    use bitcoin::{Address, Txid};
     use std::str::FromStr;
 
     #[test]
@@ -223,6 +223,54 @@ mod tests {
         assert_eq!(base_changeset.get(&dummy_label.ref_()), Some(&dummy_label));
         assert_eq!(
             base_changeset.get(&another_dummy_label.ref_()),
+            Some(&another_dummy_label)
+        );
+    }
+
+    #[test]
+    fn test_empty_merges() {
+        let mut populated_base_changeset = LabelChangeset::new();
+        let empty_incoming_changeset = LabelChangeset::new();
+
+        let dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let dummy_label = Label::Transaction(TransactionRecord {
+            ref_: dummy_txid,
+            label: Some("Machinery".to_string()),
+            origin: None,
+        });
+
+        populated_base_changeset.insert(dummy_label.clone());
+
+        populated_base_changeset.merge(empty_incoming_changeset, MergeStrategy::Overwrite);
+
+        assert_eq!(populated_base_changeset.len(), 1);
+        assert_eq!(
+            populated_base_changeset.get(&dummy_label.ref_()),
+            Some(&dummy_label)
+        );
+
+        let mut empty_base_changeset = LabelChangeset::new();
+        let mut populated_incoming_changeset = LabelChangeset::new();
+
+        let dummy_address =
+            Address::from_str("bc1p0dq0tzg2r780hldthn5mrznmpxsxc0jux5f20fwj0z3wqxxk6fpqm7q0va")
+                .expect("Failed to parse address");
+
+        let another_dummy_label = Label::Address(AddressRecord {
+            ref_: dummy_address,
+            label: Some("Heavy Machinery".to_string()),
+        });
+
+        populated_incoming_changeset.insert(another_dummy_label.clone());
+
+        empty_base_changeset.merge(populated_incoming_changeset, MergeStrategy::Overwrite);
+
+        assert_eq!(empty_base_changeset.len(), 1);
+        assert_eq!(
+            empty_base_changeset.get(&another_dummy_label.ref_()),
             Some(&another_dummy_label)
         );
     }
