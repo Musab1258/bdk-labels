@@ -42,6 +42,7 @@ version = "0.1.0"
 dependencies = [
  "bdk_wallet",
  "bip329",
+ "bitcoin",
  "serde",
  "serde_json",
  "thiserror",

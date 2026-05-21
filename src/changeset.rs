@@ -58,3 +58,49 @@ impl LabelChangeset {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bip329::{Label, TransactionRecord};
+    use bitcoin::Txid;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_basic_crud_operations() {
+        let mut changeset = LabelChangeset::new();
+        assert!(changeset.is_empty(), "Expected new changeset to be empty");
+        assert_eq!(changeset.len(), 0);
+
+        let dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let dummy_label = Label::Transaction(TransactionRecord {
+            ref_: dummy_txid,
+            label: Some("Machinery".to_string()),
+            origin: None,
+        });
+
+        changeset.insert(dummy_label.clone());
+
+        assert_eq!(changeset.len(), 1);
+        assert_eq!(changeset.get(&dummy_label.ref_()), Some(&dummy_label));
+
+        let updated_label = Label::Transaction(TransactionRecord {
+            ref_: dummy_txid,
+            label: Some("Heavy Machinery".to_string()),
+            origin: None,
+        });
+        changeset.insert(updated_label.clone());
+
+        assert_eq!(changeset.len(), 1);
+        assert_eq!(changeset.get(&dummy_label.ref_()), Some(&updated_label));
+
+        let removed_label = changeset.remove(&dummy_label.ref_());
+
+        assert_eq!(removed_label, Some(updated_label));
+        assert!(changeset.is_empty());
+        assert_eq!(changeset.get(&dummy_label.ref_()), None);
+    }
+}
