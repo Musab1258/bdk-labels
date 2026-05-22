@@ -93,4 +93,15 @@ mod tests {
 
         assert_eq!(imported_changeset.len(), 1);
     }
+
+    #[test]
+    fn test_fail_fast_on_corrupted_jsonl() {
+        let corrupted_jsonl = r#"{"type": "tx", "ref": "0000000000000000000000000000000000000000000000000000000000000000, "label": "Oops"}"#;
+
+        let reader = std::io::Cursor::new(corrupted_jsonl.as_bytes());
+
+        let imported_changeset = import(reader);
+
+        assert!(imported_changeset.is_err());
+    }
 }
