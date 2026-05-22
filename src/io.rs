@@ -14,7 +14,13 @@ pub fn export<W: Write>(labels: &LabelChangeset, mut writer: W) -> Result<(), Er
 pub fn import<R: BufRead>(reader: R) -> Result<LabelChangeset, Error> {
     let mut imported_labels = LabelChangeset::new();
     for line_result in reader.lines() {
-        let line: Label = serde_json::from_str(&line_result?)?;
+        let line_str = line_result?;
+
+        if line_str.trim().is_empty() {
+            continue;
+        }
+
+        let line: Label = serde_json::from_str(&line_str)?;
         imported_labels.insert(line);
     }
     Ok(imported_labels)
@@ -68,5 +74,23 @@ mod tests {
         let imported_file = import(reader).expect("Failed to import changeset");
 
         assert_eq!(imported_file.len(), 0);
+    }
+
+    #[test]
+    fn test_trailing_newlines_and_blank_lines() {
+        // 1. A raw string simulating a JSONL file with extra blank lines at the end
+        //{"type": "tx", "ref": "...", "label": "..."}
+        let messy_jsonl = r#"{"type": "tx","ref":"0000000000000000000000000000000000000000000000000000000000000000","label":"Machinery","origin":null}
+
+
+        "#;
+
+        // 2. Wrap it in a Cursor so it implements BufRead
+        let reader = std::io::Cursor::new(messy_jsonl.as_bytes());
+
+        // 3. Attempt to import
+        let imported_changeset = import(reader).expect("Failed to import messy JSONL");
+
+        assert_eq!(imported_changeset.len(), 1);
     }
 }
