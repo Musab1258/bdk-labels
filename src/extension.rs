@@ -277,4 +277,66 @@ mod tests {
             Some(&transaction_label)
         );
     }
+
+    #[test]
+    fn test_wallet_io_delegation_roundtrip() {
+        let external_desc =
+            "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
+        let internal_desc =
+            "wpkh(03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7)";
+
+        let mut source_wallet = Wallet::create(external_desc, internal_desc)
+            .network(Network::Testnet)
+            .create_wallet_no_persist()
+            .expect("Failed to create source wallet");
+
+        let mut source_changeset = LabelChangeset::new();
+
+        let mut source_labelled_wallet = LabelledWallet {
+            wallet: &mut source_wallet,
+            labels: &mut source_changeset,
+        };
+
+        let dummy_address = Address::from_str("mkHS9ne12qx9pS9VojpwU5xtRd4T7X7ZUt")
+            .expect("Failed to parse address");
+
+        let address_label = source_labelled_wallet
+            .add_label(dummy_address, "Employee address")
+            .expect("Failed to add address label");
+
+        let mut buffer = Vec::new();
+
+        source_labelled_wallet
+            .export_labels(&mut buffer)
+            .expect("Failed to export labels");
+
+        assert!(
+            !buffer.is_empty(),
+            "The exported buffer should contain data"
+        );
+
+        let mut dest_wallet = Wallet::create(external_desc, internal_desc)
+            .network(Network::Testnet)
+            .create_wallet_no_persist()
+            .expect("Failed to create destination wallet");
+
+        let mut dest_changeset = LabelChangeset::new();
+        let mut dest_labelled_wallet = LabelledWallet {
+            wallet: &mut dest_wallet,
+            labels: &mut dest_changeset,
+        };
+
+        let reader = std::io::Cursor::new(buffer);
+
+        dest_labelled_wallet
+            .import_labels(reader, MergeStrategy::Overwrite)
+            .expect("Failed to import labels");
+
+        assert_eq!(dest_labelled_wallet.labels.len(), 1);
+
+        assert_eq!(
+            dest_labelled_wallet.labels.get(&address_label.ref_()),
+            Some(&address_label)
+        );
+    }
 }
