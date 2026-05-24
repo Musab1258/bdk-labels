@@ -205,4 +205,76 @@ mod tests {
             })
         ));
     }
+
+    #[test]
+    fn test_mock_persister_captures_label_changeset() {
+        let external_desc =
+            "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
+        let internal_desc =
+            "wpkh(03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7)";
+
+        let mut wallet = Wallet::create(external_desc, internal_desc)
+            .network(Network::Testnet)
+            .create_wallet_no_persist()
+            .expect("Failed to create wallet");
+
+        let mut changeset = LabelChangeset::new();
+
+        let mut labelled_wallet = LabelledWallet {
+            wallet: &mut wallet,
+            labels: &mut changeset,
+        };
+
+        use std::convert::Infallible;
+        pub struct MockPersister {
+            pub received_changesets: Vec<LabelChangeset>,
+        }
+
+        impl LabelPersister for MockPersister {
+            type Error = Infallible;
+
+            fn read_labels(&self) -> Result<LabelChangeset, Self::Error> {
+                Ok(LabelChangeset::default())
+            }
+
+            fn append_changeset(&mut self, changeset: &LabelChangeset) -> Result<(), Self::Error> {
+                self.received_changesets.push(changeset.clone());
+                Ok(())
+            }
+        }
+
+        let mut mock_persister = MockPersister {
+            received_changesets: vec![],
+        };
+
+        assert_eq!(mock_persister.received_changesets.len(), 0);
+
+        let dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let transaction_label = labelled_wallet
+            .add_label(dummy_txid, "Payment for Machinery")
+            .expect("Failed to add transaction label");
+
+        let _ = labelled_wallet.persist(&mut mock_persister);
+
+        assert_eq!(mock_persister.received_changesets.len(), 1);
+
+        assert!(matches!(
+            transaction_label,
+            Label::Transaction(TransactionRecord {
+                ref_: _,
+                label: Some(_),
+                origin: _,
+            })
+        ));
+
+        let persisted_changeset = &mock_persister.received_changesets[0];
+
+        assert_eq!(
+            persisted_changeset.get(&transaction_label.ref_()),
+            Some(&transaction_label)
+        );
+    }
 }
