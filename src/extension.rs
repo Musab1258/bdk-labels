@@ -297,12 +297,16 @@ mod tests {
             labels: &mut source_changeset,
         };
 
+        assert_eq!(source_labelled_wallet.labels.len(), 0);
+
         let dummy_address = Address::from_str("mkHS9ne12qx9pS9VojpwU5xtRd4T7X7ZUt")
             .expect("Failed to parse address");
 
         let address_label = source_labelled_wallet
             .add_label(dummy_address, "Employee address")
             .expect("Failed to add address label");
+
+        assert_eq!(source_labelled_wallet.labels.len(), 1);
 
         let mut buffer = Vec::new();
 
@@ -325,6 +329,8 @@ mod tests {
             wallet: &mut dest_wallet,
             labels: &mut dest_changeset,
         };
+
+        assert_eq!(dest_labelled_wallet.labels.len(), 0);
 
         let reader = std::io::Cursor::new(buffer);
 

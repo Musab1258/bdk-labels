@@ -4,11 +4,12 @@ pub mod extension;
 pub mod io;
 pub mod persist;
 
+pub use changeset::{LabelChangeset, MergeStrategy};
 pub use error::Error;
+pub use extension::*;
 pub use io::{export, import};
 pub use persist::LabelPersister;
 
-use crate::changeset::MergeStrategy;
 use bip329::Label;
 use bitcoin::address::NetworkUnchecked;
 use bitcoin::bip32::Xpub;
