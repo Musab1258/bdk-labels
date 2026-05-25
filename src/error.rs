@@ -11,3 +11,20 @@ pub enum Error {
     #[error("Custom Database error: {0}")]
     Custom(Box<dyn std::error::Error + Send + Sync>),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    #[test]
+    fn test_io_error_conversion() {
+        fn trigger_conversion() -> Result<(), Error> {
+            Err(io::Error::new(io::ErrorKind::Other, "Forced IO Failure"))?
+        }
+
+        let result = trigger_conversion();
+
+        assert!(matches!(result, Err(Error::Io(_))));
+    }
+}
