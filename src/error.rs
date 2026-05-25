@@ -20,11 +20,25 @@ mod tests {
     #[test]
     fn test_io_error_conversion() {
         fn trigger_conversion() -> Result<(), Error> {
-            Err(io::Error::new(io::ErrorKind::Other, "Forced IO Failure"))?
+            let io_error = io::Error::new(io::ErrorKind::Other, "Forced IO Failure");
+            Err(io_error)?
         }
 
         let result = trigger_conversion();
 
         assert!(matches!(result, Err(Error::Io(_))));
+    }
+
+    #[test]
+    fn test_serde_json_error_conversion() {
+        fn trigger_conversion() -> Result<(), Error> {
+            let json_error =
+                serde_json::from_str::<serde_json::Value>("{ corrupted json string}").unwrap_err();
+            Err(json_error)?
+        }
+
+        let result = trigger_conversion();
+
+        assert!(matches!(result, Err(Error::Json(_))));
     }
 }
