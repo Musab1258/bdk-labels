@@ -1,6 +1,6 @@
 use bip329::{Label, LabelRef};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergeStrategy {
@@ -10,13 +10,13 @@ pub enum MergeStrategy {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct LabelChangeset {
-    labels: HashMap<LabelRef, Label>,
+    labels: BTreeMap<LabelRef, Label>,
 }
 
 impl LabelChangeset {
     pub fn new() -> Self {
         Self {
-            labels: HashMap::new(),
+            labels: BTreeMap::new(),
         }
     }
 
