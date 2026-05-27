@@ -3,6 +3,11 @@ use crate::error::Error;
 use bip329::Label;
 use std::io::{BufRead, Write};
 
+/// Serializes and writes a `LabelChangeset` to a standard output stream.
+///
+/// The output is formatted as a BIP-329 compliant JSONL (JSON Lines) string.
+/// Because `LabelChangeset` utilizes a `BTreeMap`, the resulting lines are
+/// deterministically ordered by their reference key.
 pub fn export<W: Write>(labels: &LabelChangeset, mut writer: W) -> Result<(), Error> {
     for label in labels.iter() {
         let line = serde_json::to_string(label)?;
@@ -11,6 +16,9 @@ pub fn export<W: Write>(labels: &LabelChangeset, mut writer: W) -> Result<(), Er
     Ok(())
 }
 
+/// Reads and deserializes a BIP-329 JSONL stream into a new `LabelChangeset`.
+///
+/// Blank lines and trailing newlines are safely ignored during the import process.
 pub fn import<R: BufRead>(reader: R) -> Result<LabelChangeset, Error> {
     let mut imported_labels = LabelChangeset::new();
     for line_result in reader.lines() {

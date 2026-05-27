@@ -131,7 +131,7 @@ at your option.
 
 ## Minimum Supported Rust Version (MSRV)
 
-This crate supports Rust **1.70.0** or newer.
+This crate supports Rust **1.85.0** or newer.
 
 ## Contributing
 Found a bug, have an issue or a feature request? Feel free to open an issue on GitHub.

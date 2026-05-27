@@ -2,48 +2,65 @@ use bip329::{Label, LabelRef};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// Defines the strategy for resolving conflicts when merging two label sets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergeStrategy {
+    /// The incoming label will overwrite the existing label if they share the same reference.
     Overwrite,
+    /// The existing label is preserved; the incoming label is ignored if they share the same reference.
     KeepExisting,
 }
 
+/// An in-memory, deterministic collection of BIP-329 wallet labels.
+///
+/// Backed by a `BTreeMap`, this structure ensures $O(\log n)$ deduplication and
+/// guarantees that labels are deterministically sorted by their reference key.
+/// This prevents noisy diffs when exporting to version-controlled JSONL files.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct LabelChangeset {
     labels: BTreeMap<LabelRef, Label>,
 }
 
 impl LabelChangeset {
+    /// Creates a new, empty `LabelChangeset`.
     pub fn new() -> Self {
         Self {
             labels: BTreeMap::new(),
         }
     }
 
+    /// Inserts a new label into the changeset.
+    /// If a label with the same reference already exists, it is overwritten.
     pub fn insert(&mut self, label: Label) {
         self.labels.insert(label.ref_(), label);
     }
 
+    /// Removes the label associated with the given target reference, returning it if it existed.
     pub fn remove(&mut self, target: &LabelRef) -> Option<Label> {
         self.labels.remove(target)
     }
 
+    /// Retrieves a reference to the label associated with the given target.
     pub fn get(&self, target: &LabelRef) -> Option<&Label> {
         self.labels.get(target)
     }
 
+    /// Returns `true` if the changeset contains no labels.
     pub fn is_empty(&self) -> bool {
         self.labels.is_empty()
     }
 
+    /// Returns the total number of labels in the changeset.
     pub fn len(&self) -> usize {
         self.labels.len()
     }
 
+    /// Returns an iterator over the labels, yielded in deterministic order based on their reference.
     pub fn iter(&self) -> impl Iterator<Item = &Label> {
         self.labels.values()
     }
 
+    /// Merges an incoming `LabelChangeset` into the current one, resolving conflicts based on the provided `MergeStrategy`.
     pub fn merge(&mut self, incoming: LabelChangeset, strategy: MergeStrategy) {
         for (_, incoming_label) in incoming.labels {
             let target = incoming_label.ref_();

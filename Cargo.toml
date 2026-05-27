@@ -1,7 +1,15 @@
 [package]
 name = "bdk-labels"
 version = "0.1.0"
+homepage = "https://bitcoindevkit.org"
+repository = "https://github.com/Musab1258/bdk-labels"
+documentation = "https://docs.rs/bdk-labels"
+description = "A BIP-329 Wallet Labels implementation for the Bitcoin Dev Kit"
+keywords = ["bitcoin", "bdk", "bip329", "wallet", "labels"]
+license = "MIT OR Apache-2.0"
 edition = "2024"
+rust-version = "1.85.0"
+readme = "README.md"
 
 [dependencies]
 bdk_wallet = "3.0.0"

@@ -8,18 +8,21 @@ use crate::{export, import};
 use bip329::Label;
 use std::io::{BufRead, Write};
 
+/// A wrapper around a BDK `Wallet` and a `LabelChangeset` that provides BIP-329 functionality.
+///
+/// This struct enables direct manipulation of wallet labels while holding mutable references
+/// to both the underlying wallet state and the current label changeset.
 pub struct LabelledWallet<'a> {
+    /// A mutable reference to the underlying BDK wallet.
     pub wallet: &'a mut Wallet,
-
+    /// A mutable reference to the current in-memory label state.
     pub labels: &'a mut LabelChangeset,
 }
 
 impl Bip329 for LabelledWallet<'_> {
     fn add_label(
         &mut self,
-
         target: impl Into<LabelTarget>,
-
         label_text: impl Into<String>,
     ) -> Result<Label, Error> {
         let new_label = match target.into() {
@@ -72,6 +75,7 @@ impl Bip329 for LabelledWallet<'_> {
 }
 
 impl LabelledWallet<'_> {
+    /// Flushes the current in-memory label changeset to the provided database persister.
     pub fn persist<P: LabelPersister>(&mut self, persister: &mut P) -> Result<(), Error> {
         persister
             .append_changeset(self.labels)

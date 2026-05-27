@@ -1,13 +1,21 @@
 use thiserror::Error;
 
+/// Represents all possible errors that can occur within the `bdk-labels` crate.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// An error originating from standard filesystem or stream I/O operations.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+
+    /// An error related to serializing or deserializing the BIP-329 JSONL format.
     #[error("JSON parsing error: {0}")]
     Json(#[from] serde_json::Error),
+
+    /// An error indicating that the provided label data violates the BIP-329 specification.
     #[error("Invalid BIP329 structure: {0}")]
     Validation(String),
+
+    /// An opaque error type allowing consumers to bubble up errors from their custom database backends.
     #[error("Custom Database error: {0}")]
     Custom(Box<dyn std::error::Error + Send + Sync>),
 }

@@ -1,3 +1,13 @@
+//! # bdk-labels
+//!
+//! A Rust library providing native BIP-329 (Wallet Labels Export Format) support
+//! for the Bitcoin Dev Kit (BDK) ecosystem.
+//!
+//! This crate extends `bdk_wallet::Wallet` to allow developers to label transactions,
+//! addresses, UTXOs, and public keys with human-readable labels. It provides a
+//! deterministic, `BTreeMap`-backed memory structure (`LabelChangeset`) and a decoupled
+//! persistence trait (`LabelPersister`) for seamless integration with any database backend.
+
 pub mod changeset;
 pub mod error;
 pub mod extension;
@@ -16,9 +26,13 @@ use bitcoin::bip32::Xpub;
 use bitcoin::{Address, OutPoint, PublicKey, Txid};
 use std::io::{BufRead, Write};
 
+/// A wrapper type for targeting a specific transaction output (UTXO).
 pub struct OutputTarget(pub OutPoint);
+
+/// A wrapper type for targeting a specific transaction input.
 pub struct InputTarget(pub OutPoint);
 
+/// Represents the various Bitcoin primitives that can be tagged with a BIP-329 label.
 pub enum LabelTarget {
     Txid(Txid),
     Address(Address<NetworkUnchecked>),
@@ -64,18 +78,22 @@ impl From<Xpub> for LabelTarget {
     }
 }
 
+/// The core trait providing BIP-329 operations for a wallet.
 pub trait Bip329 {
+    /// Adds a new human-readable label to a specified target (e.g., Address, Txid).
     fn add_label(
         &mut self,
         target: impl Into<LabelTarget>,
         label_text: impl Into<String>,
     ) -> Result<Label, Error>;
 
+    /// Imports labels from a BIP-329 compliant JSONL stream and merges them with the current state.
     fn import_labels<R: BufRead>(
         &mut self,
         reader: R,
         strategy: MergeStrategy,
     ) -> Result<(), Error>;
 
+    /// Exports the current label state deterministically to a writable stream in BIP-329 JSONL format.
     fn export_labels<W: Write>(&self, writer: W) -> Result<(), Error>;
 }
