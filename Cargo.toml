@@ -1,6 +1,7 @@
 [package]
 name = "bdk-labels"
 version = "0.1.0"
+authors = ["Musab Habeeb"]
 homepage = "https://bitcoindevkit.org"
 repository = "https://github.com/Musab1258/bdk-labels"
 documentation = "https://docs.rs/bdk-labels"
