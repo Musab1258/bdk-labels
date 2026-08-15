@@ -159,7 +159,7 @@ fn test_full_labelling_lifecycle() {
         Label::Output(OutputRecord {
             ref_: _,
             label: Some(_),
-            spendable: false,
+            spendable: true,
         })
     ));
 

@@ -43,11 +43,22 @@ impl Bip329 for LabelledWallet<'_> {
                 ref_: outpoint,
                 label: Some(label_text.into()),
             }),
-            LabelTarget::Output(outpoint) => Label::Output(bip329::OutputRecord {
-                ref_: outpoint,
-                label: Some(label_text.into()),
-                spendable: false,
-            }),
+            LabelTarget::Output(outpoint) => {
+                let spendable = self
+                    .labels
+                    .get(&bip329::LabelRef::Output(outpoint))
+                    .and_then(|l| match l {
+                        Label::Output(rec) => Some(rec.spendable),
+                        _ => None,
+                    })
+                    .unwrap_or(true);
+
+                Label::Output(bip329::OutputRecord {
+                    ref_: outpoint,
+                    label: Some(label_text.into()),
+                    spendable,
+                })
+            }
             LabelTarget::Xpub(xpub) => Label::ExtendedPublicKey(bip329::ExtendedPublicKeyRecord {
                 ref_: xpub,
                 label: Some(label_text.into()),
@@ -197,7 +208,7 @@ mod tests {
             Label::Output(OutputRecord {
                 ref_: _,
                 label: Some(_),
-                spendable: false,
+                spendable: true,
             })
         ));
 
@@ -348,5 +359,86 @@ mod tests {
             dest_labelled_wallet.labels.get(&address_label.ref_()),
             Some(&address_label)
         );
+    }
+    #[test]
+    fn test_add_label_preserves_existing_spendable_state() {
+        let external_desc =
+            "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
+        let internal_desc =
+            "wpkh(03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7)";
+
+        let mut wallet = Wallet::create(external_desc, internal_desc)
+            .network(Network::Testnet)
+            .create_wallet_no_persist()
+            .expect("Failed to create wallet");
+
+        let dummy_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let dummy_outpoint = OutPoint::new(dummy_txid, 0);
+
+        let mut changeset = LabelChangeset::new();
+
+        changeset.insert(Label::Output(bip329::OutputRecord {
+            ref_: dummy_outpoint,
+            label: Some("Dummy Label".to_string()),
+            spendable: false,
+        }));
+
+        let mut labelled_wallet = LabelledWallet {
+            wallet: &mut wallet,
+            labels: &mut changeset,
+        };
+
+        let relabelled_output = labelled_wallet
+            .add_label(OutputTarget(dummy_outpoint), "My transaction's Output")
+            .expect("Failed to add address label");
+
+        assert!(matches!(
+            relabelled_output,
+            Label::Output(OutputRecord {
+                spendable: false,
+                ..
+            })
+        ))
+    }
+
+    #[test]
+    fn test_add_label_defaults_new_outputs_to_spendadle_true() {
+        let external_desc =
+            "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
+        let internal_desc =
+            "wpkh(03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7)";
+
+        let mut wallet = Wallet::create(external_desc, internal_desc)
+            .network(Network::Testnet)
+            .create_wallet_no_persist()
+            .expect("Failed to create wallet");
+
+        let mut changeset = LabelChangeset::new();
+
+        let mut labelled_wallet = LabelledWallet {
+            wallet: &mut wallet,
+            labels: &mut changeset,
+        };
+
+        let new_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+
+        let new_outpoint = OutPoint::new(new_txid, 0);
+
+        let new_output = labelled_wallet
+            .add_label(OutputTarget(new_outpoint), "New Output")
+            .expect("Failed to add address label");
+
+        assert!(matches!(
+            new_output,
+            Label::Output(OutputRecord {
+                spendable: true,
+                ..
+            })
+        ))
     }
 }
