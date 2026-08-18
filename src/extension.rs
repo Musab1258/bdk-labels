@@ -279,14 +279,22 @@ mod tests {
             .add_label(dummy_txid, "Payment for Machinery")
             .expect("Failed to add transaction label");
 
-        let _ = labelled_wallet.persist(&mut mock_persister).expect("first persist should succeed");
+        let _ = labelled_wallet
+            .persist(&mut mock_persister)
+            .expect("first persist should succeed");
 
         assert_eq!(mock_persister.received_changesets.len(), 1);
         assert_eq!(mock_persister.received_changesets[0].len(), 1);
 
-        let _ = labelled_wallet.persist(&mut mock_persister).expect("second, no-op persist should succeed");
+        let _ = labelled_wallet
+            .persist(&mut mock_persister)
+            .expect("second, no-op persist should succeed");
 
-        assert_eq!(mock_persister.received_changesets.len(), 1, "persist() must not re-send unchanged labels");
+        assert_eq!(
+            mock_persister.received_changesets.len(),
+            1,
+            "persist() must not re-send unchanged labels"
+        );
 
         assert!(matches!(
             transaction_label,
