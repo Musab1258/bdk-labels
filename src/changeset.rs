@@ -1,6 +1,6 @@
 use bip329::{Label, LabelRef};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Defines the strategy for resolving conflicts when merging two label sets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,6 +19,9 @@ pub enum MergeStrategy {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct LabelChangeset {
     labels: BTreeMap<LabelRef, Label>,
+    // Refs that have not been persisted to the wallet's database
+    #[serde(skip)]
+    staged: BTreeSet<LabelRef>,
 }
 
 impl LabelChangeset {
@@ -26,17 +29,21 @@ impl LabelChangeset {
     pub fn new() -> Self {
         Self {
             labels: BTreeMap::new(),
+            staged: BTreeSet::new(),
         }
     }
 
-    /// Inserts a new label into the changeset.
+    /// Inserts a new label into the changeset making its ref staged.
     /// If a label with the same reference already exists, it is overwritten.
     pub fn insert(&mut self, label: Label) {
-        self.labels.insert(label.ref_(), label);
+        let target = label.ref_();
+        self.staged.insert(target.clone());
+        self.labels.insert(target, label);
     }
 
     /// Removes the label associated with the given target reference, returning it if it existed.
     pub fn remove(&mut self, target: &LabelRef) -> Option<Label> {
+        self.staged.insert(target.clone());
         self.labels.remove(target)
     }
 
@@ -73,6 +80,28 @@ impl LabelChangeset {
                 }
             }
         }
+    }
+
+    /// Returns the unpersisted diff of the changeset.
+    pub fn diff(&self) -> LabelChangeset {
+        let mut d = LabelChangeset::new();
+
+        for target in &self.staged {
+            if let Some(label) = self.labels.get(target) {
+                d.labels.insert(target.clone(), label.clone());
+            }
+        }
+        d
+    }
+
+    /// Clears the staged label refs
+    pub fn clear_staged(&mut self) {
+        self.staged.clear();
+    }
+
+    /// Checks and returns true if there are changes staged
+    pub fn has_staged_changes(&self) -> bool {
+        !self.staged.is_empty()
     }
 }
 
@@ -290,5 +319,51 @@ mod tests {
             empty_base_changeset.get(&another_dummy_label.ref_()),
             Some(&another_dummy_label)
         );
+    }
+
+    #[test]
+    fn test_diff_only_contains_staged_entries_and_clears_on_demand() {
+        let mut changeset = LabelChangeset::new();
+
+        let first_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000")
+                .unwrap();
+        let second_txid =
+            Txid::from_str("0000000000000000000000000000000000000000000000000000000000000110")
+                .unwrap();
+
+        let first_label = Label::Transaction(TransactionRecord {
+            ref_: first_txid,
+            label: Some("First Transaction".to_string()),
+            origin: None,
+        });
+        let second_label = Label::Transaction(TransactionRecord {
+            ref_: second_txid,
+            label: Some("Second Transaction".to_string()),
+            origin: None,
+        });
+
+        changeset.insert(first_label.clone());
+        assert!(changeset.has_staged_changes());
+
+        let first_diff = changeset.diff();
+
+        assert_eq!(first_diff.labels.len(), 1);
+
+        assert_eq!(first_diff.get(&first_label.ref_()), Some(&first_label));
+
+        changeset.clear_staged();
+        assert!(!changeset.has_staged_changes());
+
+        let empty_diff = changeset.diff();
+        assert!(empty_diff.is_empty());
+        assert_eq!(first_diff.labels.len(), 1);
+
+        changeset.insert(second_label.clone());
+        assert!(changeset.has_staged_changes());
+        let second_diff = changeset.diff();
+        assert_eq!(second_diff.labels.len(), 1);
+        assert_eq!(second_diff.get(&second_label.ref_()), Some(&second_label));
+        assert_eq!(second_diff.get(&first_label.ref_()), None);
     }
 }

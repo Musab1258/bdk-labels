@@ -86,11 +86,18 @@ impl Bip329 for LabelledWallet<'_> {
 }
 
 impl LabelledWallet<'_> {
-    /// Flushes the current in-memory label changeset to the provided database persister.
+    /// Flushes only the labels changed since the last successful persist to
+    /// the provided database persister.
     pub fn persist<P: LabelPersister>(&mut self, persister: &mut P) -> Result<(), Error> {
+        if !self.labels.has_staged_changes() {
+            return Ok(());
+        }
+        let diff = self.labels.diff();
         persister
-            .append_changeset(self.labels)
+            .append_changeset(&diff)
             .map_err(|e| Error::Custom(Box::new(e)))?;
+        self.labels.clear_staged();
+
         Ok(())
     }
 }
@@ -222,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mock_persister_captures_label_changeset() {
+    fn test_mock_persister_captures_only_staged_labels() {
         let external_desc =
             "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
         let internal_desc =
@@ -272,9 +279,14 @@ mod tests {
             .add_label(dummy_txid, "Payment for Machinery")
             .expect("Failed to add transaction label");
 
-        let _ = labelled_wallet.persist(&mut mock_persister);
+        let _ = labelled_wallet.persist(&mut mock_persister).expect("first persist should succeed");
 
         assert_eq!(mock_persister.received_changesets.len(), 1);
+        assert_eq!(mock_persister.received_changesets[0].len(), 1);
+
+        let _ = labelled_wallet.persist(&mut mock_persister).expect("second, no-op persist should succeed");
+
+        assert_eq!(mock_persister.received_changesets.len(), 1, "persist() must not re-send unchanged labels");
 
         assert!(matches!(
             transaction_label,
