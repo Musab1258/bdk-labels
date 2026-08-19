@@ -28,7 +28,7 @@ mod tests {
     #[test]
     fn test_io_error_conversion() {
         fn trigger_conversion() -> Result<(), Error> {
-            let io_error = io::Error::new(io::ErrorKind::Other, "Forced IO Failure");
+            let io_error = io::Error::other("Forced IO Failure");
             Err(io_error)?
         }
 
