@@ -19,3 +19,6 @@ bitcoin = "0.32.9"
 serde = "1.0.228"
 serde_json = "1.0.149"
 thiserror = "2.0.18"
+
+[dev-dependencies]
+bdk_wallet = { version = "3.0.0", features = ["test-utils"] }
