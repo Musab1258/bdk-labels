@@ -8,10 +8,10 @@ use bip329::{
     AddressRecord, ExtendedPublicKeyRecord, InputRecord, Label, OutputRecord, PublicKeyRecord,
     TransactionRecord,
 };
-use bitcoin::address::NetworkUnchecked;
 use bitcoin::Address;
-use bitcoin::bip32::Xpub;
 use bitcoin::Network;
+use bitcoin::address::NetworkUnchecked;
+use bitcoin::bip32::Xpub;
 use bitcoin::{OutPoint, PublicKey, Txid};
 use std::convert::Infallible;
 use std::fmt::Display;

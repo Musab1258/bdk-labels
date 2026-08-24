@@ -144,9 +144,9 @@ mod tests {
         AddressRecord, ExtendedPublicKeyRecord, InputRecord, Label, OutputRecord, PublicKeyRecord,
         TransactionRecord,
     };
+    use bitcoin::Address;
     use bitcoin::Network;
     use bitcoin::address::NetworkUnchecked;
-    use bitcoin::Address;
     use bitcoin::bip32::Xpub;
     use bitcoin::{OutPoint, PublicKey, Txid};
     use std::matches;
