@@ -2,14 +2,17 @@ use bdk_labels::{
     Bip329, Error, InputTarget, LabelChangeset, LabelPersister, LabelledWallet, MergeStrategy,
     OutputTarget,
 };
-use bdk_wallet::Wallet;
+use bdk_wallet::test_utils::{get_funded_wallet, get_test_wpkh_and_change_desc};
+use bdk_wallet::{KeychainKind, Wallet};
 use bip329::{
     AddressRecord, ExtendedPublicKeyRecord, InputRecord, Label, OutputRecord, PublicKeyRecord,
     TransactionRecord,
 };
+use bitcoin::Address;
 use bitcoin::Network;
+use bitcoin::address::NetworkUnchecked;
 use bitcoin::bip32::Xpub;
-use bitcoin::{Address, OutPoint, PublicKey, Txid};
+use bitcoin::{OutPoint, PublicKey, Txid};
 use std::convert::Infallible;
 use std::fmt::Display;
 use std::str::FromStr;
@@ -55,6 +58,34 @@ impl LabelPersister for FailingMockDb {
     }
 }
 
+fn funded_test_wallet() -> (Wallet, Txid) {
+    let (desc, change_desc) = get_test_wpkh_and_change_desc();
+    get_funded_wallet(desc, change_desc)
+}
+
+fn unspent_and_spent_outpoints(wallet: &Wallet) -> (OutPoint, OutPoint) {
+    let unspent_outpoint = wallet
+        .list_unspent()
+        .next()
+        .expect("funded wallet should have one unspent output")
+        .outpoint;
+
+    let spent_outpoint = wallet
+        .list_output()
+        .map(|o| o.outpoint)
+        .find(|op| *op != unspent_outpoint)
+        .expect("funded wallet should also have a spent output (tx1's input)");
+
+    (unspent_outpoint, spent_outpoint)
+}
+
+fn as_unchecked(address: Address) -> Address<NetworkUnchecked> {
+    address
+        .to_string()
+        .parse()
+        .expect("Wallet derived address should be converted to Network Unchecked")
+}
+
 // take a wallet from creation, through labeling, to final database persistence and verification?
 #[test]
 fn test_full_labelling_lifecycle() {
@@ -64,13 +95,13 @@ fn test_full_labelling_lifecycle() {
 
     assert_eq!(integration_mock_db.received_changesets.len(), 0);
 
-    let external_desc = "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
-    let internal_desc = "wpkh(03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7)";
+    let (mut test_wallet, funding_txid) = funded_test_wallet();
 
-    let mut test_wallet = Wallet::create(external_desc, internal_desc)
-        .network(Network::Testnet)
-        .create_wallet_no_persist()
-        .expect("Failed to create source wallet");
+    let (unspent_outpoint, spent_outpoint) = unspent_and_spent_outpoints(&test_wallet);
+
+    let dummy_address = test_wallet
+        .reveal_next_address(KeychainKind::External)
+        .address;
 
     let mut test_changeset = LabelChangeset::new();
 
@@ -81,14 +112,6 @@ fn test_full_labelling_lifecycle() {
 
     assert_eq!(test_labelled_wallet.labels.len(), 0);
 
-    let dummy_txid =
-        Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
-
-    let dummy_address =
-        Address::from_str("mkHS9ne12qx9pS9VojpwU5xtRd4T7X7ZUt").expect("Failed to parse address");
-
-    let dummy_outpoint = OutPoint::new(dummy_txid, 0);
-
     let dummy_pubkey =
         PublicKey::from_str("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
             .unwrap();
@@ -96,11 +119,11 @@ fn test_full_labelling_lifecycle() {
     let dummy_xpub = Xpub::from_str("xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8").unwrap();
 
     let transaction_label = test_labelled_wallet
-        .add_label(dummy_txid, "Payment for Machinery")
+        .add_label(funding_txid, "Payment for Machinery")
         .expect("Failed to add transaction label");
 
     let address_label = test_labelled_wallet
-        .add_label(dummy_address, "Employee address")
+        .add_label(as_unchecked(dummy_address.clone()), "Employee address")
         .expect("Failed to add address label");
 
     let pubkey_label = test_labelled_wallet
@@ -108,11 +131,11 @@ fn test_full_labelling_lifecycle() {
         .expect("Failed to add address label");
 
     let input_label = test_labelled_wallet
-        .add_label(InputTarget(dummy_outpoint), "My transaction's input")
+        .add_label(InputTarget(spent_outpoint), "My transaction's input")
         .expect("Failed to add address label");
 
     let output_label = test_labelled_wallet
-        .add_label(OutputTarget(dummy_outpoint), "My transaction's Output")
+        .add_label(OutputTarget(unspent_outpoint), "My transaction's Output")
         .expect("Failed to add address label");
 
     let xpub_label = test_labelled_wallet
@@ -188,6 +211,9 @@ fn test_full_labelling_lifecycle() {
         "The exported buffer should contain data"
     );
 
+    let external_desc = "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
+    let internal_desc = "wpkh(03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7)";
+
     let mut dest_wallet = Wallet::create(external_desc, internal_desc)
         .network(Network::Testnet)
         .create_wallet_no_persist()
@@ -219,13 +245,7 @@ fn test_full_labelling_lifecycle() {
 fn test_database_error_bubbles_up() {
     let mut failing_mock_db = FailingMockDb {};
 
-    let external_desc = "wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)";
-    let internal_desc = "wpkh(03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7)";
-
-    let mut test_wallet = Wallet::create(external_desc, internal_desc)
-        .network(Network::Testnet)
-        .create_wallet_no_persist()
-        .expect("Failed to create source wallet");
+    let (mut test_wallet, funding_txid) = funded_test_wallet();
 
     let mut test_changeset = LabelChangeset::new();
 
@@ -236,11 +256,8 @@ fn test_database_error_bubbles_up() {
 
     assert_eq!(test_labelled_wallet.labels.len(), 0);
 
-    let dummy_txid =
-        Txid::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
-
     let transaction_label = test_labelled_wallet
-        .add_label(dummy_txid, "Payment for Machinery")
+        .add_label(funding_txid, "Payment for Machinery")
         .expect("Failed to add transaction label");
 
     assert_eq!(test_labelled_wallet.labels.len(), 1);
