@@ -1,6 +1,6 @@
 [package]
 name = "bdk-labels"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Musab Habeeb"]
 repository = "https://github.com/Musab1258/bdk-labels"
 documentation = "https://docs.rs/bdk-labels"
