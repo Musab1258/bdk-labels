@@ -27,7 +27,7 @@ impl Bip329 for LabelledWallet<'_> {
     ) -> Result<Label, Error> {
         let new_label = match target.into() {
             LabelTarget::Txid(txid) => {
-                let known_txid = self.wallet.list_output().any(|o| o.outpoint.txid == txid);
+                let known_txid = self.wallet.get_tx(txid).is_some();
                 if !known_txid {
                     return Err(Error::Validation(format!(
                         "txid {txid} not found in wallet"
