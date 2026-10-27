@@ -275,3 +275,53 @@ fn test_database_error_bubbles_up() {
 
     assert!(matches!(result, Err(Error::Custom(_))));
 }
+
+#[test]
+fn test_label_tx_that_creates_no_wallet_output() {
+    let (mut wallet, _) = funded_test_wallet();
+
+    // spends wallet coins, pays only a foreign address (BIP-173 testnet vector)
+    let foreign = Address::from_str("tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx")
+        .unwrap()
+        .assume_checked();
+
+    let mut psbt = {
+        let mut b = wallet.build_tx();
+        b.drain_wallet().drain_to(foreign.script_pubkey());
+        b.finish().unwrap()
+    };
+    assert!(
+        wallet
+            .sign(&mut psbt, bdk_wallet::SignOptions::default())
+            .unwrap()
+    );
+    let tx = psbt.extract_tx().unwrap();
+    let txid = tx.compute_txid();
+    wallet.apply_unconfirmed_txs([(tx, 1_000_000u64)]);
+
+    // sanity: the tx really has no wallet-owned output
+    assert!(!wallet.list_output().any(|o| o.outpoint.txid == txid));
+
+    let mut labels = LabelChangeset::new();
+    let mut lw = LabelledWallet {
+        wallet: &mut wallet,
+        labels: &mut labels,
+    };
+    lw.add_label(txid, "Payment to Steve").unwrap();
+}
+
+#[test]
+fn test_label_unknown_txid_is_still_rejected() {
+    let (mut wallet, _) = funded_test_wallet();
+    let unknown =
+        Txid::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+    let mut labels = LabelChangeset::new();
+    let mut lw = LabelledWallet {
+        wallet: &mut wallet,
+        labels: &mut labels,
+    };
+    assert!(matches!(
+        lw.add_label(unknown, "x"),
+        Err(Error::Validation(_))
+    ));
+}
