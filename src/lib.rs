@@ -14,6 +14,9 @@ pub mod extension;
 pub mod io;
 pub mod persist;
 
+/// The `bip329` crate, whose [`Label`](bip329::Label) and [`LabelRef`](bip329::LabelRef) types
+/// appear in this crate's API.
+pub use bip329;
 pub use changeset::{LabelChangeset, MergeStrategy};
 pub use error::Error;
 pub use extension::*;

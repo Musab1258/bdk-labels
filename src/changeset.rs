@@ -68,15 +68,23 @@ impl LabelChangeset {
     }
 
     /// Merges an incoming `LabelChangeset` into the current one, resolving conflicts based on the provided `MergeStrategy`.
+    ///
+    /// Every label that ends up changing this changeset is staged, so that a following
+    /// [`LabelledWallet::persist`](crate::LabelledWallet::persist) writes it.
     pub fn merge(&mut self, incoming: LabelChangeset, strategy: MergeStrategy) {
-        for (_, incoming_label) in incoming.labels {
-            let target = incoming_label.ref_();
+        for (target, incoming_label) in incoming.labels {
             match strategy {
                 MergeStrategy::Overwrite => {
+                    self.staged.insert(target.clone());
                     self.labels.insert(target, incoming_label);
                 }
                 MergeStrategy::KeepExisting => {
-                    self.labels.entry(target).or_insert(incoming_label);
+                    if let std::collections::btree_map::Entry::Vacant(entry) =
+                        self.labels.entry(target.clone())
+                    {
+                        entry.insert(incoming_label);
+                        self.staged.insert(target);
+                    }
                 }
             }
         }
@@ -365,5 +373,48 @@ mod tests {
         assert_eq!(second_diff.labels.len(), 1);
         assert_eq!(second_diff.get(&second_label.ref_()), Some(&second_label));
         assert_eq!(second_diff.get(&first_label.ref_()), None);
+    }
+
+    fn tx_label(txid: &str, text: &str) -> Label {
+        Label::Transaction(TransactionRecord {
+            ref_: Txid::from_str(txid).unwrap(),
+            label: Some(text.to_string()),
+            origin: None,
+        })
+    }
+
+    const TXID: &str = "5fe2524f0c46bb12767d1865114031cd631578ac05422a767c0edf23f5c0aeaa";
+
+    fn incoming(text: &str) -> LabelChangeset {
+        let mut incoming = LabelChangeset::new();
+        incoming.insert(tx_label(TXID, text));
+        incoming
+    }
+
+    #[test]
+    fn test_merge_overwrite_stages_merged_labels() {
+        let mut changeset = LabelChangeset::new();
+
+        changeset.merge(incoming("new"), MergeStrategy::Overwrite);
+
+        assert!(changeset.has_staged_changes());
+        assert_eq!(changeset.diff().len(), 1);
+    }
+
+    #[test]
+    fn test_merge_keep_existing_stages_only_new_labels() {
+        let mut changeset = LabelChangeset::new();
+
+        changeset.merge(incoming("first"), MergeStrategy::KeepExisting);
+        assert_eq!(changeset.diff().len(), 1);
+
+        changeset.clear_staged();
+        changeset.merge(incoming("second"), MergeStrategy::KeepExisting);
+
+        assert!(!changeset.has_staged_changes());
+        assert_eq!(
+            changeset.iter().next().and_then(|l| l.label()),
+            Some("first")
+        );
     }
 }
